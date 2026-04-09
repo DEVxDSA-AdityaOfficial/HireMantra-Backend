@@ -1,0 +1,28 @@
+# Web framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# Database
+sqlalchemy>=2.0.36
+alembic>=1.14.0
+pymysql>=1.1.0
+cryptography>=43.0.0
+
+# Validation & settings
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+
+# HTTP client (optional, for external APIs)
+httpx>=0.28.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# Auth & email
+PyJWT>=2.9.0
+passlib[bcrypt]>=1.7.4
+fastapi-mail>=1.4.1
+email-validator>=2.2.0
+
+# LLM
+openai>=1.40.0
