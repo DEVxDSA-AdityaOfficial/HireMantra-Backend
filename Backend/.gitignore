@@ -38,6 +38,12 @@ logs/
 *.db
 *.sqlite3
 
+# Uploaded resumes (local dev)
+uploads/resumes/
+
+# Generated broadcast media (Gemini / Veo)
+data/broadcast_media/
+
 # Build / dist
 dist/
 build/

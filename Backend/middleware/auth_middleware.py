@@ -1,5 +1,6 @@
 """JWT validation for protected API routes; public routes bypass."""
 
+import re
 from typing import Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -14,7 +15,7 @@ def _normalize_path(path: str) -> str:
     return p if p else "/"
 
 
-def _is_public_path(path: str) -> bool:
+def _is_public_path(path: str, method: str) -> bool:
     p = _normalize_path(path)
     public = {
         "/",
@@ -23,9 +24,25 @@ def _is_public_path(path: str) -> bool:
         "/redoc",
         "/openapi.json",
         "/api/auth/request-otp",
+        "/api/auth/register/request-otp",
         "/api/auth/verify-otp",
     }
-    return p in public
+    if p in public:
+        return True
+    m = method.upper()
+    if m == "POST" and p == "/api/onboarding/register":
+        return True
+    if m == "POST" and p == "/api/careers/apply":
+        return True
+    if m == "GET" and re.fullmatch(
+        r"/api/careers/organizations/[^/]+/job-descriptions", p
+    ):
+        return True
+    if m == "GET" and re.fullmatch(
+        r"/api/careers/organizations/[^/]+/job-descriptions/[^/]+", p
+    ):
+        return True
+    return False
 
 
 def _extract_bearer(request: Request) -> str | None:
@@ -45,7 +62,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         if not path.startswith("/api"):
             return await call_next(request)
 
-        if _is_public_path(request.url.path):
+        if _is_public_path(request.url.path, request.method):
             return await call_next(request)
 
         token = _extract_bearer(request)

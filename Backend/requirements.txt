@@ -1,6 +1,7 @@
 # Web framework
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
+python-multipart>=0.0.9
 
 # Database
 sqlalchemy>=2.0.36
@@ -20,9 +21,17 @@ python-dotenv>=1.0.0
 
 # Auth & email
 PyJWT>=2.9.0
-passlib[bcrypt]>=1.7.4
+bcrypt>=4.0.0
 fastapi-mail>=1.4.1
 email-validator>=2.2.0
 
 # LLM
 openai>=1.40.0
+google-genai>=1.0.0
+
+# Voice (Retell AI)
+retell-sdk>=5.0.0
+
+# Resume parsing (PDF / DOCX)
+pypdf>=5.0.0
+python-docx>=1.1.0

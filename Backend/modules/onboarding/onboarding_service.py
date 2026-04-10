@@ -10,8 +10,13 @@ from modules.onboarding.onboarding_dto import (
     OnboardingRegisterDto,
     OnboardingUpdateDto,
 )
+from utils.jwt_utils import create_access_token
 from utils.organization_utils import get_organization_for_owner
 from utils.password_utils import hash_password
+
+
+def _normalize_email(email: str) -> str:
+    return email.strip().lower()
 
 
 def _serialize_onboarding(user: Users, org: Organization, row: Onboarding) -> dict:
@@ -31,29 +36,51 @@ def _serialize_onboarding(user: Users, org: Organization, row: Onboarding) -> di
     }
 
 
-def complete_registration_service(user_id: str, req: OnboardingRegisterDto) -> dict:
+def complete_public_registration_service(req: OnboardingRegisterDto) -> dict:
+    """
+    No JWT: create or finish user by email, attach org + onboarding, return JWT
+    (same validity as verify-otp via create_access_token).
+    """
     db: Session = SessionLocal()
     try:
-        user = db.query(Users).filter(Users.id == user_id).first()
-        if not user:
-            return {"status": False, "message": "User not found", "data": None}
-        if not user.email_verified:
-            return {"status": False, "message": "Email not verified", "data": None}
+        email = _normalize_email(str(req.email))
+        if not email:
+            return {"status": False, "message": "Email is required", "data": None}
 
-        if get_organization_for_owner(db, user_id):
+        user = db.query(Users).filter(Users.email == email).first()
+
+        if user and get_organization_for_owner(db, user.id):
             return {
                 "status": False,
-                "message": "Registration already completed",
+                "message": "This email is already registered. Please log in.",
                 "data": None,
             }
 
         now = datetime.utcnow()
-        user.password_hash = hash_password(req.password)
-        user.updated_at = now
+
+        if not user:
+            user = Users(
+                id=generate_uuid(),
+                email=email,
+                password_hash=hash_password(req.password),
+                otp=None,
+                otp_created_at=None,
+                email_verified=True,
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(user)
+            db.flush()
+        else:
+            user.password_hash = hash_password(req.password)
+            user.email_verified = True
+            user.otp = None
+            user.otp_created_at = None
+            user.updated_at = now
 
         org = Organization(
             id=generate_uuid(),
-            owner_user_id=user_id,
+            owner_user_id=user.id,
             created_at=now,
             updated_at=now,
         )
@@ -74,13 +101,21 @@ def complete_registration_service(user_id: str, req: OnboardingRegisterDto) -> d
         )
         db.add(row)
         db.commit()
+        db.refresh(user)
         db.refresh(org)
         db.refresh(row)
+
+        access_token = create_access_token({"sub": user.id, "email": user.email})
+        payload = _serialize_onboarding(user, org, row)
+        payload["access_token"] = access_token
+        payload["token_type"] = "bearer"
+        payload["user_id"] = user.id
+        payload["is_exist"] = 1
 
         return {
             "status": True,
             "message": "Registration completed successfully",
-            "data": _serialize_onboarding(user, org, row),
+            "data": payload,
         }
     except Exception as e:
         db.rollback()

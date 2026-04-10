@@ -1,13 +1,24 @@
-"""Password hashing with bcrypt."""
+"""Password hashing with bcrypt (native library; avoids passlib + bcrypt API drift)."""
 
-from passlib.context import CryptContext
+import bcrypt
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def _password_bytes(plain: str) -> bytes:
+    """Bcrypt only considers the first 72 bytes of the password."""
+    b = plain.encode("utf-8")
+    if len(b) > 72:
+        return b[:72]
+    return b
 
 
 def hash_password(plain: str) -> str:
-    return _pwd_context.hash(plain)
+    return bcrypt.hashpw(_password_bytes(plain), bcrypt.gensalt()).decode("ascii")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd_context.verify(plain, hashed)
+    if not hashed:
+        return False
+    try:
+        return bcrypt.checkpw(_password_bytes(plain), hashed.encode("ascii"))
+    except ValueError:
+        return False
